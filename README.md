@@ -1,31 +1,3 @@
-
-# 무료로 한국어🇰🇷 파인튜닝 모델 받아서 나만의 로컬 LLM 호스팅 하기(LangServe) + RAG 까지!!
-
-## 업데이트 안내
-
-**2024-10-31: 변경 로그**
-
-- LangServe 0.3 버전 업데이트, LangChain 0.3 버전 업데이트, LangChain-Ollama 0.3 버전 업데이트
-- LangChain-Ollama 0.3 버전 업데이트로 인하여 모델 로딩 방법이 변경되었습니다.
-- Xionic 체인 제거(API 동작 불안정으로 인한 중단)
-
-**2024-12-21: 변경 로그**
-
-- FastAPI 서버 코드 리팩토링
-- `langchain-ollama` 패키지 업데이트
-- `main.py` 파일 코드 리팩토링
-
-## 공시 홈페이지
-
-- 링크: https://python.langchain.com/docs/langserve/
-
-## YouTube 튜토리얼
-
-아래의 영상을 시청하시면서 따라서 진행하세요.
-
-[![데모 영상](https://img.youtube.com/vi/VkcaigvTrug/0.jpg)](https://youtu.be/VkcaigvTrug)
-
-
 ## HuggingFace gguf 파일을 Ollama 로딩
 
 > HuggingFace-Hub 설치
@@ -40,7 +12,7 @@ pip install huggingface-hub
 GGUF 파일을 다운로드 받기 위하여 https://huggingface.co/heegyu/EEVE-Korean-Instruct-10.8B-v1.0-GGUF 에서 원하는 .gguf 모델을 다운로드 받습니다.
 
 순서대로
-- `HuggingFace Repo`
+- `HuggingFace Repo`s
 - .gguf 파일명
 - local-dir 설정
 - 심볼릭 링크 설정
@@ -130,33 +102,3 @@ NGROK 도메인 등록 링크: https://dashboard.ngrok.com/cloud-edge/domains
 ```bash
 ngrok http --domain=poodle-deep-marmot.ngrok-free.app 8000
 ```
-
-## GPU 사용량 모니터링
-
-Github Repo: https://github.com/tlkh/asitop
-
-```bash
-pip install asitop
-```
-
-패스워드 설정
-```bash
-sudo asitop
-```
-실행
-```bash
-asitop
-```
-
-## License
-
-소스코드를 활용하실 때는 반드시 출처를 표기해 주시기 바랍니다.
-
-```
-MIT License
-
-Copyright (c) 2024, 테디노트
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of
