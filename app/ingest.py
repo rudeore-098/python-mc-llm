@@ -1,3 +1,4 @@
+import pickle
 from pathlib import Path
 from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -7,9 +8,12 @@ from langchain_ollama import OllamaEmbeddings
 from core.logger import get_logger
 from core.exceptions import IngestionError
 
-# PDF 원본 파일 디렉토리 및 벡터 인덱스 저장 경로
+# PDF 원본 파일 디렉토리 및 인덱스 저장 경로
 DATA_DIR = Path(__file__).parent.parent / "data" / "raw"
 VECTORSTORE_PATH = Path(__file__).parent.parent / "data" / "vectorstore"
+
+# BM25 키워드 검색을 위해 청킹된 문서도 함께 저장
+DOCS_PATH = VECTORSTORE_PATH / "docs.pkl"
 EMBEDDING_MODEL = "bge-m3"
 
 logger = get_logger(__name__)
@@ -39,8 +43,10 @@ def ingest():
         logger.info(f"  → {len(docs)}개 청크 생성")
 
     logger.info(f"전체 청크 수: {len(all_docs)}")
-    logger.info("임베딩 생성 중 (시간이 걸릴 수 있습니다)...")
 
+    VECTORSTORE_PATH.mkdir(parents=True, exist_ok=True)
+
+    logger.info("임베딩 생성 중 (시간이 걸릴 수 있습니다)...")
     try:
         # bge-m3 임베딩 모델로 벡터화 후 FAISS 인덱스 생성
         embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
@@ -48,10 +54,14 @@ def ingest():
     except Exception as e:
         raise IngestionError(f"벡터스토어 생성 실패: {e}") from e
 
-    # 인덱스를 디스크에 저장 (서버 재시작 시 재사용)
-    VECTORSTORE_PATH.mkdir(parents=True, exist_ok=True)
+    # FAISS 인덱스 저장 (벡터 유사도 검색용)
     vectorstore.save_local(str(VECTORSTORE_PATH))
-    logger.info(f"벡터스토어 저장 완료 → {VECTORSTORE_PATH}")
+    logger.info(f"FAISS 인덱스 저장 완료 → {VECTORSTORE_PATH}")
+
+    # 청킹된 문서 pickle 저장 (BM25 키워드 검색용)
+    with open(DOCS_PATH, "wb") as f:
+        pickle.dump(all_docs, f)
+    logger.info(f"문서 청크 저장 완료 → {DOCS_PATH}")
 
 
 if __name__ == "__main__":
