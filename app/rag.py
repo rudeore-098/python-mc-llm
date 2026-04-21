@@ -25,7 +25,7 @@ class RagChain(BaseChain):
 
     def __init__(
         self,
-        model: str = "exaone",
+        model: str = "exaone3.5",
         temperature: float = 0.3,
         system_prompt: Optional[str] = None,
         **kwargs,
@@ -64,7 +64,7 @@ class RagChain(BaseChain):
 
         # Ollama 모델 지정
         llm = ChatOllama(
-            model="exaone",
+            model="exaone3.5",
             temperature=0,
         )
 
