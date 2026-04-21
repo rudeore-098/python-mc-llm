@@ -1,74 +1,58 @@
-from typing import Optional
-from langchain_core.output_parsers import StrOutputParser
+from pathlib import Path
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_core.prompts import load_prompt
 from langchain_ollama import OllamaEmbeddings, ChatOllama
 
 from base import BaseChain
+from core.exceptions import RagError, RetrievalError
+
+# ingest.py 실행 시 저장된 FAISS 인덱스 경로
+VECTORSTORE_PATH = Path(__file__).parent.parent / "data" / "vectorstore"
+EMBEDDING_MODEL = "bge-m3"
 
 
-# 문서 포맷팅
 def format_docs(docs):
+    # 검색된 문서를 XML 태그로 포맷팅 (출처 파일명·페이지 포함)
     return "\n\n".join(
-        f"<document><content>{doc.page_content}</content><page>{doc.metadata['page']}</page><source>{doc.metadata['source']}</source></document>"
+        f"<document><content>{doc.page_content}</content>"
+        f"<page>{doc.metadata['page']}</page>"
+        f"<source>{doc.metadata['source']}</source></document>"
         for doc in docs
     )
 
-### 문서를 입력 받아서 RAG 하는 방식 벡터 유사도 기반 RAg 키워드 검색 기반 RAG 추가 필요 
-## 문서를 실행 마다 디비를 생성하는 구조 
 
 class RagChain(BaseChain):
 
-    def __init__(
-        self,
-        model: str = "exaone",
-        temperature: float = 0.3,
-        system_prompt: Optional[str] = None,
-        **kwargs,
-    ):
-        super().__init__(model, temperature, **kwargs)
-        self.system_prompt = (
-            system_prompt
-            or "You are a helpful AI Assistant. Your name is '테디'. You must answer in Korean."
-        )
-        if "file_path" in kwargs:
-            self.file_path = kwargs["file_path"]
-
     def setup(self):
-        if not self.file_path:
-            raise ValueError("file_path is required")
+        # 사전 빌드된 벡터스토어 존재 여부 확인
+        if not VECTORSTORE_PATH.exists():
+            raise RagError(
+                f"벡터스토어가 없습니다: {VECTORSTORE_PATH}\n"
+                "`python app/ingest.py`를 먼저 실행하세요."
+            )
 
-        # Splitter 설정
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        try:
+            # 디스크에서 FAISS 인덱스 로드 (임베딩 모델은 인제스트와 동일해야 함)
+            embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+            vectorstore = FAISS.load_local(
+                str(VECTORSTORE_PATH),
+                embeddings,
+                allow_dangerous_deserialization=True,
+            )
+        except Exception as e:
+            raise RagError(f"벡터스토어 로드 실패: {e}") from e
 
-        # 문서 로드
-        loader = PDFPlumberLoader(self.file_path)
-        docs = loader.load_and_split(text_splitter=text_splitter)
+        try:
+            retriever = vectorstore.as_retriever()
+        except Exception as e:
+            raise RetrievalError(f"리트리버 초기화 실패: {e}") from e
 
-        # 캐싱을 지원하는 임베딩 설정
-        EMBEDDING_MODEL = "bge-m3"
-        embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
-
-        # 벡터 DB 저장
-        vectorstore = FAISS.from_documents(docs, embedding=embeddings)
-
-        # 문서 검색기 설정
-        retriever = vectorstore.as_retriever()
-
-        # 프롬프트 로드
+        # RAG 프롬프트 및 LLM 체인 구성
         prompt = load_prompt("prompts/rag-exaone.yaml", encoding="utf-8")
+        llm = ChatOllama(model=self.model, temperature=self.temperature)
 
-        # Ollama 모델 지정
-        llm = ChatOllama(
-            model="exaone",
-            temperature=0,
-        )
-
-        # 체인 생성
         chain = (
             {"context": retriever | format_docs, "question": RunnablePassthrough()}
             | prompt
