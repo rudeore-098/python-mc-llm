@@ -16,7 +16,7 @@ class BaseChain(ABC):
         self.temperature = temperature
         self.kwargs = kwargs
 
-    @abstractmethod
+    @abstractmethod 
     def setup(self):
         """체인 설정을 위한 추상 메서드"""
         pass

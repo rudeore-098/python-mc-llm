@@ -21,7 +21,7 @@ GGUF 파일을 다운로드 받기 위하여 https://huggingface.co/heegyu/EEVE-
 huggingface-cli download \
   unsloth/gemma-4-E4B-it-GGUF \
   gemma-4-E4B-it-Q4_K_M.gguf \
-  --local-dir C:\Users\User\Desktop\Projects\ollama_model \
+  --local-dir C:\Users\User\Desktop\Projects\ollama_model\
   --local-dir-use-symlinks False
 ```
 
