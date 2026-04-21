@@ -5,6 +5,9 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from typing import Optional
 from base import BaseChain
 
+'''
+불필요한 chain 제거
+'''
 
 class TopicChain(BaseChain):
     """
@@ -18,7 +21,7 @@ class TopicChain(BaseChain):
 
     def __init__(
         self,
-        model: str = "exaone",
+        model: str = "gemma4-e4b",
         temperature: float = 0,
         system_prompt: Optional[str] = None,
         **kwargs,

@@ -44,8 +44,8 @@ add_routes(app, LLM().create(), path="/llm")
 # topic 체인 추가
 add_routes(app, TopicChain().create(), path="/topic")
 
-# RAG 체인 추가
-# file_path 파라미터 필요: 문서 경로를 지정합니다.
+RAG 체인 추가
+file_path 파라미터 필요: 문서 경로를 지정합니다.
 add_routes(
     app,
     RagChain(file_path="data/SPRI_AI_Brief_2023년12월호_F.pdf").create(),

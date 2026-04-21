@@ -18,6 +18,8 @@ def format_docs(docs):
         for doc in docs
     )
 
+### 문서를 입력 받아서 RAG 하는 방식 벡터 유사도 기반 RAg 키워드 검색 기반 RAG 추가 필요 
+## 문서를 실행 마다 디비를 생성하는 구조 
 
 class RagChain(BaseChain):
 
