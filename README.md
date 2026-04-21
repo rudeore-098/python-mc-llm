@@ -47,9 +47,9 @@ GGUF 파일을 다운로드 받기 위하여 https://huggingface.co/heegyu/EEVE-
   
 ```bash
 huggingface-cli download \
-  heegyu/EEVE-Korean-Instruct-10.8B-v1.0-GGUF \
-  ggml-model-Q5_K_M.gguf \
-  --local-dir 본인의_컴퓨터_다운로드폴더_경로 \
+  unsloth/gemma-4-E4B-it-GGUF \
+  gemma-4-E4B-it-Q4_K_M.gguf \
+  --local-dir C:\Users\User\Desktop\Projects\ollama_model \
   --local-dir-use-symlinks False
 ```
 
