@@ -70,13 +70,14 @@ add_routes(
     playground_type="chat",
 )
 
-add_routes(
-    app,
-    RagChain().create().with_types(input_type=InputChat), 
-    enable_public_trace_link_endpoint=True,
-    playground_type="chat",
-    path="/rokmcllm",
-)
+# chat의 경우 입력값이 HumanMessage(content="사용자 질문") 형태로 들어감
+# add_routes(
+#     app,
+#     RagChain().create().with_types(input_type=InputChat), 
+#     enable_public_trace_link_endpoint=True,
+#     playground_type="chat",
+#     path="/rokmcllm",
+# )
 
 
 # 서버 실행 설정
