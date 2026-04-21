@@ -21,7 +21,7 @@ class TopicChain(BaseChain):
 
     def __init__(
         self,
-        model: str = "gemma4-e4b",
+        model: str = "exaone3.5",
         temperature: float = 0,
         system_prompt: Optional[str] = None,
         **kwargs,
@@ -59,7 +59,7 @@ class ChatChain(BaseChain):
 
     def __init__(
         self,
-        model: str = "exaone",
+        model: str = "exaone3.5",
         temperature: float = 0.3,
         system_prompt: Optional[str] = None,
         **kwargs,
@@ -110,7 +110,7 @@ class Translator(BaseChain):
 
     def __init__(
         self,
-        model: str = "exaone",
+        model: str = "exaone3.5",
         temperature: float = 0,
         system_prompt: Optional[str] = None,
         **kwargs,
