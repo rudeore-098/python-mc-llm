@@ -5,7 +5,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import load_prompt
 from langchain_ollama import ChatOllama
 
-from base import BaseChain
+from chains.base import BaseChain
 from core.exceptions import RagError, RetrievalError
 from core.logger import get_logger
 from retrievers import (

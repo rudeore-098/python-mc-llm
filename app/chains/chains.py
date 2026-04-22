@@ -3,7 +3,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from typing import Optional
-from base import BaseChain
+from chains.base import BaseChain
 
 '''
 불필요한 chain 제거
