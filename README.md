@@ -90,6 +90,8 @@ python server.py
 python fastapi_server.py
 ```
 
+http://localhost:8001/docs#/
+
 ## ngrok 에서 터널링(포트 포워드)
 
 ```bash
