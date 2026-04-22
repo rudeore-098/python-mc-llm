@@ -47,6 +47,8 @@ app = FastAPI(
 | `POST /api/topic` | 주제 설명 생성 |
 | `POST /api/rag` | 하이브리드 RAG 질의응답 |
 | `POST /api/chat` | 다중 턴 대화 |
+| `POST /api/rag/chat` | 하이브리드 RAG 질의응답 + 다중 턴 대화 |
+
 
 각 엔드포인트에 `/stream`을 붙이면 SSE 스트리밍 응답을 받을 수 있습니다.
 예: `POST /api/chat/stream`
