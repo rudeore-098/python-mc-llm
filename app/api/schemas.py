@@ -27,5 +27,14 @@ class ChatInput(BaseModel):
     )
 
 
+class RagChatInput(BaseModel):
+    question: str = Field(..., description="현재 질문", examples=["이 문서에서 중요한 내용은 무엇인가요?"])
+    messages: List[MessageItem] = Field(
+        default=[],
+        description="이전 대화 기록",
+        examples=[[{"role": "human", "content": "안녕하세요!"}, {"role": "ai", "content": "안녕하세요! 무엇을 도와드릴까요?"}]],
+    )
+
+
 class TextOutput(BaseModel):
     output: str = Field(..., description="LLM 응답")
