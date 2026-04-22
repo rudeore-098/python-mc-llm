@@ -7,8 +7,8 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langserve import add_routes
 
-from chains import ChatChain, TopicChain, LLM, Translator
-from rag import RagChain
+from chains.chains import ChatChain, TopicChain, LLM, Translator
+from chains.rag import RagChain
 
 from dotenv import load_dotenv
 

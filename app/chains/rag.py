@@ -17,7 +17,7 @@ from retrievers import (
 logger = get_logger(__name__)
 
 # ingest.py 실행 시 저장된 FAISS 인덱스 및 문서 청크 경로
-VECTORSTORE_PATH = Path(__file__).parent.parent / "data" / "vectorstore"
+VECTORSTORE_PATH = Path(__file__).parent.parent.parent / "data" / "vectorstore"
 DOCS_PATH = VECTORSTORE_PATH / "docs.pkl"
 EMBEDDING_MODEL = "bge-m3"
 
