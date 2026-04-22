@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -12,6 +12,7 @@ from api.dependencies import (
     get_rag_chain,
     get_chat_chain,
 )
+from core.exceptions import AppHTTPException
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -64,6 +65,14 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+@app.exception_handler(AppHTTPException)
+async def app_http_exception_handler(request: Request, exc: AppHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error_code": exc.error_code, "detail": exc.detail},
+    )
+
 
 # api/ 하위의 모든 라우터를 등록합니다.
 # router.py에서 prefix="/api"를 붙이므로 /api/translate 형태가 됩니다.

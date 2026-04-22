@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from api.schemas import TextInput, TextOutput
 from api.dependencies import get_llm_chain
+from core.exceptions import InternalServerError
 
 router = APIRouter(prefix="/llm", tags=["LLM"])
 
@@ -18,7 +19,7 @@ async def llm_invoke(body: TextInput, chain=Depends(get_llm_chain)):
         result = await chain.ainvoke(body.input)
         return TextOutput(output=result.content)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise InternalServerError(detail=str(e))
 
 
 @router.post(

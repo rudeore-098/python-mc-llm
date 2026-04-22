@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from api.schemas import RagInput, TextOutput
 from api.dependencies import get_rag_chain
+from core.exceptions import InternalServerError
 
 router = APIRouter(prefix="/rag", tags=["RAG 검색"])
 
@@ -18,7 +19,7 @@ async def rag_query(body: RagInput, chain=Depends(get_rag_chain)):
         result = await chain.ainvoke(body.question)
         return TextOutput(output=result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise InternalServerError(detail=str(e))
 
 
 @router.post(

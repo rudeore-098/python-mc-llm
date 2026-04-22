@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from api.schemas import TopicInput, TextOutput
 from api.dependencies import get_topic_chain
+from core.exceptions import InternalServerError
 
 router = APIRouter(prefix="/topic", tags=["주제 설명"])
 
@@ -18,7 +19,7 @@ async def explain_topic(body: TopicInput, chain=Depends(get_topic_chain)):
         result = await chain.ainvoke({"topic": body.topic})
         return TextOutput(output=result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise InternalServerError(detail=str(e))
 
 
 @router.post(

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from api.schemas import ChatInput, TextOutput
 from api.dependencies import get_chat_chain
+from core.exceptions import InternalServerError
 
 router = APIRouter(prefix="/chat", tags=["대화"])
 
@@ -30,7 +31,7 @@ async def chat(body: ChatInput, chain=Depends(get_chat_chain)):
         result = await chain.ainvoke({"messages": messages})
         return TextOutput(output=result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise InternalServerError(detail=str(e))
 
 
 @router.post(
