@@ -4,6 +4,7 @@ from chains.chains import ChatChain, TopicChain, LLM, Translator
 from chains.rag import RagChain
 from chains.rag_chat import RagChatChain
 from retrievers import build_vector_retriever, build_keyword_retriever, build_hybrid_retriever
+from tools import build_rag_tools
 
 _VECTORSTORE_PATH = Path(__file__).parent.parent.parent / "data" / "vectorstore"
 _DOCS_PATH = _VECTORSTORE_PATH / "docs.pkl"
@@ -53,8 +54,13 @@ def get_rag_chain():
 
 
 @lru_cache()
+def get_rag_tools():
+    return build_rag_tools(get_rag_retriever())
+
+
+@lru_cache()
 def get_rag_chat_chain():
-    return RagChatChain(retriever=get_rag_retriever()).create()
+    return RagChatChain(tools=get_rag_tools()).create()
 
 
 @lru_cache()

@@ -6,10 +6,8 @@ from langchain_core.runnables import Runnable
 from langchain_ollama import ChatOllama
 
 from chains.base import BaseChain
-from chains.utils import format_docs
 from core.logger import get_logger
 from core.prompt_loader import load_system_message
-from tools import build_retriever_tools
 
 logger = get_logger(__name__)
 
@@ -106,20 +104,19 @@ class RagChatChain(BaseChain):
     LLM이 search_documents tool 호출 여부를 판단하고, 결과를 받아 최종 답변을 생성합니다.
     """
 
-    def __init__(self, retriever, **kwargs):
+    def __init__(self, tools: list, **kwargs):
         super().__init__(**kwargs)
-        self.retriever = retriever
+        self.tools = tools
 
     def setup(self) -> _AgentLoop:
         logger.info(f"RAG Chat Agent 구성 중 (모델: {self.model}, temperature: {self.temperature})")
 
-        tools = build_retriever_tools(self.retriever, format_docs)
         llm = ChatOllama(model=self.model, temperature=self.temperature)
 
         return _AgentLoop(
             tool_caller=_ToolCaller(
-                llm_with_tools=llm.bind_tools(tools),
-                tools_map={t.name: t for t in tools},
+                llm_with_tools=llm.bind_tools(self.tools),
+                tools_map={t.name: t for t in self.tools},
             ),
             message_builder=_MessageBuilder(
                 system_content=load_system_message(_PROMPT_PATH),
