@@ -1,8 +1,7 @@
 from pathlib import Path
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableLambda
-from langchain_core.output_parsers import StrOutputParser
 from langchain_ollama import ChatOllama
+from core.prompt_loader import load_chat_prompt
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 
 from chains.base import BaseChain
@@ -68,18 +67,8 @@ class RagChatChain(BaseChain):
         tools = build_retriever_tools(retriever, format_docs)
         llm = ChatOllama(model=self.model, temperature=self.temperature)
 
-        prompt = ChatPromptTemplate.from_messages([
-            (
-                "system",
-                "당신은 문서 기반 질의응답 어시스턴트입니다.\n"
-                "사용자 질문에 답하기 위해 search_documents 도구로 관련 문서를 검색하세요.\n"
-                "검색된 문서를 바탕으로 정확하고 상세한 답변을 한국어로 제공하세요.\n"
-                "답변 마지막에 참고한 문서의 출처(파일명, 페이지)를 명시하세요.",
-            ),
-            MessagesPlaceholder("chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder("agent_scratchpad"),
-        ])
+        base_dir = Path(__file__).parent.parent
+        prompt = load_chat_prompt(base_dir / "prompts/rag-agent.yaml")
 
         agent = create_tool_calling_agent(llm, tools, prompt)
         agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
