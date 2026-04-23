@@ -11,7 +11,7 @@ class BaseChain(ABC):
         temperature (float): 모델의 temperature 값
     """
 
-    def __init__(self, model: str = "gemma4-e4b", temperature: float = 0, **kwargs):
+    def __init__(self, model: str = "gemma4:e4b", temperature: float = 0, **kwargs):
         self.model = model
         self.temperature = temperature
         self.kwargs = kwargs
