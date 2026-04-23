@@ -42,6 +42,7 @@ app = FastAPI(
 
 | 경로 | 설명 |
 |---|---|
+| `GET /api/health` | 서버 상태 확인 |
 | `POST /api/translate` | 텍스트를 한국어로 번역 |
 | `POST /api/llm` | LLM 직접 호출 |
 | `POST /api/topic` | 주제 설명 생성 |
