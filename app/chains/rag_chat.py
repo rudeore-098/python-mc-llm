@@ -1,5 +1,6 @@
+import re
 from pathlib import Path
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from langchain_ollama import ChatOllama
 
@@ -11,67 +12,112 @@ from tools import build_retriever_tools
 
 logger = get_logger(__name__)
 
-_MAX_ITERATIONS = 5
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "rag-agent.yaml"
 
 
 def _strip_eos(text: str) -> str:
-    return text.replace("<eos>", "").strip()
+    return re.sub(r"</?eos>", "", text).strip()
 
 
-class _AgentLoop(Runnable):
-    """
-    AgentExecutor 없이 tool loop을 직접 구현합니다.
-    - ainvoke: 최종 답변 문자열 반환
-    - astream:  최종 LLM 응답을 토큰 단위로 스트리밍
-    """
+class _MessageBuilder:
+    """메시지 리스트 구성 책임."""
 
-    def __init__(self, llm_with_tools, llm, tools_map, system_content):
-        self._llm_with_tools = llm_with_tools
-        self._llm = llm
-        self._tools_map = tools_map
+    def __init__(self, system_content: str):
         self._system_content = system_content
 
-    def _build_messages(self, inputs: dict) -> list:
+    def build_initial(self, inputs: dict) -> list:
         messages = [SystemMessage(content=self._system_content)]
         messages.extend(inputs.get("chat_history", []))
         messages.append(HumanMessage(content=inputs["question"]))
         return messages
 
-    async def _run_tool_loop(self, inputs: dict) -> tuple[list, str | None]:
-        """tool 호출이 없어질 때까지 반복. 마지막 응답이 직접 답변이면 함께 반환."""
-        messages = self._build_messages(inputs)
+    def build_with_context(self, inputs: dict, tool_results: list[str]) -> list:
+        context = "\n\n---\n\n".join(tool_results)
+        messages = [SystemMessage(content=self._system_content)]
+        messages.extend(inputs.get("chat_history", []))
+        messages.append(HumanMessage(
+            content=f"{inputs['question']}\n\n[검색된 문서]\n{context}"
+        ))
+        return messages
 
-        for _ in range(_MAX_ITERATIONS):
-            response = await self._llm_with_tools.ainvoke(messages)
-            messages.append(response)
 
-            if not response.tool_calls:
-                return messages, _strip_eos(response.content)
+class _ToolCaller:
+    """
+    LLM tool calling + 결과 수집 책임.
 
-            for tc in response.tool_calls:
-                result = self._tools_map[tc["name"]].invoke(tc["args"])
-                logger.debug(f"Tool '{tc['name']}' 호출, 결과 길이: {len(result)}")
-                messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
+    Gemma 4는 ToolMessage를 받은 후 최종 답변 생성에 실패하므로,
+    tool 결과만 수집하고 ToolMessage는 최종 답변 단계에 전달하지 않습니다.
+    """
 
-        return messages, None
+    def __init__(self, llm_with_tools, tools_map: dict):
+        self._llm = llm_with_tools
+        self._tools_map = tools_map
+
+    async def run(self, messages: list) -> tuple[str | None, list[str]]:
+        """
+        Returns:
+            (direct_answer, [])  — 도구 미호출, 모델이 직접 답변
+            (None, tool_results) — 도구 호출, 결과 수집 완료
+        """
+        response = await self._llm.ainvoke(messages)
+        logger.info(f"[tool-phase] tool_calls={len(response.tool_calls)}")
+
+        if not response.tool_calls:
+            direct = _strip_eos(response.content)
+            return (direct or None), []
+
+        seen: set[str] = set()
+        tool_results: list[str] = []
+
+        for tc in response.tool_calls:
+            result = self._tools_map[tc["name"]].invoke(tc["args"])
+            if result in seen:
+                logger.info(f"[tool-phase] '{tc['name']}' 중복 결과 무시")
+                continue
+            seen.add(result)
+            tool_results.append(result)
+            logger.info(f"[tool-phase] '{tc['name']}' 결과 길이: {len(result)}")
+
+        return None, tool_results
+
+
+class _AgentLoop(Runnable):
+    """
+    _ToolCaller와 _MessageBuilder를 조합하는 Runnable 오케스트레이터.
+    - 도구 호출 여부에 따라 직접 답변 또는 context 임베딩 후 plain LLM 호출
+    """
+
+    def __init__(self, tool_caller: _ToolCaller, llm, message_builder: _MessageBuilder):
+        self._tool_caller = tool_caller
+        self._llm = llm
+        self._message_builder = message_builder
 
     def invoke(self, input, config=None, **kwargs):
         import asyncio
         return asyncio.get_event_loop().run_until_complete(self.ainvoke(input, config))
 
     async def ainvoke(self, input, config=None, **kwargs) -> str:
-        messages, answer = await self._run_tool_loop(input)
-        if answer is not None:
-            return answer
-        response = await self._llm_with_tools.ainvoke(messages)
+        initial = self._message_builder.build_initial(input)
+        direct, tool_results = await self._tool_caller.run(initial)
+
+        if not tool_results:
+            return direct or ""
+
+        messages = self._message_builder.build_with_context(input, tool_results)
+        logger.info(f"[answer-phase] context 길이: {sum(len(r) for r in tool_results)}")
+        response = await self._llm.ainvoke(messages)
         return _strip_eos(response.content)
 
     async def astream(self, input, config=None, **kwargs):
-        messages, answer = await self._run_tool_loop(input)
-        if answer is not None:
-            yield answer
+        initial = self._message_builder.build_initial(input)
+        direct, tool_results = await self._tool_caller.run(initial)
+
+        if not tool_results:
+            yield direct or ""
             return
+
+        messages = self._message_builder.build_with_context(input, tool_results)
+        logger.info(f"[answer-phase] context 길이: {sum(len(r) for r in tool_results)}")
         async for chunk in self._llm.astream(messages):
             if chunk.content:
                 cleaned = _strip_eos(chunk.content)
@@ -95,15 +141,15 @@ class RagChatChain(BaseChain):
         logger.info(f"RAG Chat Agent 구성 중 (모델: {self.model}, temperature: {self.temperature})")
 
         tools = build_retriever_tools(self.retriever, format_docs)
-        tools_map = {t.name: t for t in tools}
-
         llm = ChatOllama(model=self.model, temperature=self.temperature)
-        llm_with_tools = llm.bind_tools(tools)
-        system_content = load_system_message(_PROMPT_PATH)
 
         return _AgentLoop(
-            llm_with_tools=llm_with_tools,
+            tool_caller=_ToolCaller(
+                llm_with_tools=llm.bind_tools(tools),
+                tools_map={t.name: t for t in tools},
+            ),
             llm=llm,
-            tools_map=tools_map,
-            system_content=system_content,
+            message_builder=_MessageBuilder(
+                system_content=load_system_message(_PROMPT_PATH),
+            ),
         )
