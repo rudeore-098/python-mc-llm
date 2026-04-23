@@ -23,7 +23,7 @@ def _to_lc_messages(items):
     "",
     response_model=TextOutput,
     summary="RAG 대화형 질의응답",
-    description="이전 대화 기록을 포함한 하이브리드 RAG 질의응답입니다. 대화 기록이 있으면 질문을 자동으로 재구성해 검색합니다.",
+    description="이전 대화 기록을 포함한 하이브리드 RAG 질의응답입니다. LLM이 필요 시 search_documents tool을 호출해 검색합니다.",
 )
 async def rag_chat(body: RagChatInput, chain=Depends(get_rag_chat_chain)):
     try:
@@ -45,11 +45,22 @@ async def rag_chat(body: RagChatInput, chain=Depends(get_rag_chat_chain)):
 async def rag_chat_stream(body: RagChatInput, chain=Depends(get_rag_chat_chain)):
     async def generator():
         try:
-            async for chunk in chain.astream({
-                "question": body.question,
-                "chat_history": _to_lc_messages(body.messages),
-            }):
-                yield f"data: {chunk}\n\n"
+            async for event in chain.astream_events(
+                {
+                    "question": body.question,
+                    "chat_history": _to_lc_messages(body.messages),
+                },
+                version="v2",
+            ):
+                # LLM 최종 답변 토큰만 스트리밍 (tool 호출 중간 출력 제외)
+                if (
+                    event["event"] == "on_chat_model_stream"
+                    and event.get("tags") == []  # AgentExecutor 내부 최종 LLM
+                    and event["data"].get("chunk")
+                ):
+                    content = event["data"]["chunk"].content
+                    if content:
+                        yield f"data: {content}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield f"data: [ERROR] {e}\n\n"

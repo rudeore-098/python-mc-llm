@@ -1,8 +1,9 @@
 from pathlib import Path
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_ollama import ChatOllama
-from core.prompt_loader import load_chat_prompt
+from langchain.agents import create_tool_calling_agent, AgentExecutor
 
 from chains.base import BaseChain
 from core.exceptions import RetrievalError
@@ -12,6 +13,7 @@ from retrievers import (
     build_keyword_retriever,
     build_hybrid_retriever,
 )
+from tools import build_retriever_tools
 
 logger = get_logger(__name__)
 
@@ -35,11 +37,10 @@ def format_docs(docs):
 
 class RagChatChain(BaseChain):
     """
-    대화 히스토리를 지원하는 RAG 체인.
+    Tool Calling Agent 기반 RAG 대화 체인.
 
     입력: {"question": str, "chat_history": List[BaseMessage]}
-    - chat_history가 비어 있으면 question을 그대로 검색에 사용
-    - chat_history가 있으면 LLM으로 독립적인 질문으로 재구성 후 검색
+    LLM이 검색 필요 여부를 판단해 search_documents tool을 호출합니다.
     """
 
     def setup(self):
@@ -62,34 +63,35 @@ class RagChatChain(BaseChain):
         except Exception as e:
             raise RetrievalError(f"리트리버 초기화 실패: {e}") from e
 
-        logger.info(f"RAG Chat 체인 구성 중 (모델: {self.model}, temperature: {self.temperature})")
+        logger.info(f"RAG Chat Agent 구성 중 (모델: {self.model}, temperature: {self.temperature})")
 
-        base_dir = Path(__file__).parent.parent
-        reformulation_prompt = load_chat_prompt(base_dir / "prompts/rag-reformulation.yaml")
-        rag_prompt = load_chat_prompt(base_dir / "prompts/rag-chat.yaml")
+        tools = build_retriever_tools(retriever, format_docs)
         llm = ChatOllama(model=self.model, temperature=self.temperature)
 
-        reformulation_chain = reformulation_prompt | llm | StrOutputParser()
+        prompt = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                "당신은 문서 기반 질의응답 어시스턴트입니다.\n"
+                "사용자 질문에 답하기 위해 search_documents 도구로 관련 문서를 검색하세요.\n"
+                "검색된 문서를 바탕으로 정확하고 상세한 답변을 한국어로 제공하세요.\n"
+                "답변 마지막에 참고한 문서의 출처(파일명, 페이지)를 명시하세요.",
+            ),
+            MessagesPlaceholder("chat_history", optional=True),
+            ("human", "{input}"),
+            MessagesPlaceholder("agent_scratchpad"),
+        ])
 
-        async def get_standalone_question(inputs: dict) -> str:
-            chat_history = inputs.get("chat_history", [])
-            if not chat_history:
-                return inputs["question"]
-            return await reformulation_chain.ainvoke({
-                "question": inputs["question"],
-                "chat_history": chat_history,
-            })
+        agent = create_tool_calling_agent(llm, tools, prompt)
+        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
+        # 외부 API의 "question"/"chat_history" 키를 AgentExecutor 입력으로 매핑하고
+        # AgentExecutor 출력의 "output" 키만 반환합니다.
         chain = (
-            RunnablePassthrough.assign(
-                standalone_question=RunnableLambda(get_standalone_question)
-            )
-            | RunnablePassthrough.assign(
-                context=lambda x: format_docs(retriever.invoke(x["standalone_question"]))
-            )
-            | rag_prompt
-            | llm
-            | StrOutputParser()
+            RunnableLambda(lambda x: {
+                "input": x["question"],
+                "chat_history": x.get("chat_history", []),
+            })
+            | agent_executor
+            | RunnableLambda(lambda x: x["output"])
         )
-        logger.info(f"RAG_prompt  : {rag_prompt}")
         return chain
