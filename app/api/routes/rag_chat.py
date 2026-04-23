@@ -45,22 +45,12 @@ async def rag_chat(body: RagChatInput, chain=Depends(get_rag_chat_chain)):
 async def rag_chat_stream(body: RagChatInput, chain=Depends(get_rag_chat_chain)):
     async def generator():
         try:
-            async for event in chain.astream_events(
-                {
-                    "question": body.question,
-                    "chat_history": _to_lc_messages(body.messages),
-                },
-                version="v2",
-            ):
-                # LLM 최종 답변 토큰만 스트리밍 (tool 호출 중간 출력 제외)
-                if (
-                    event["event"] == "on_chat_model_stream"
-                    and event.get("tags") == []  # AgentExecutor 내부 최종 LLM
-                    and event["data"].get("chunk")
-                ):
-                    content = event["data"]["chunk"].content
-                    if content:
-                        yield f"data: {content}\n\n"
+            async for chunk in chain.astream({
+                "question": body.question,
+                "chat_history": _to_lc_messages(body.messages),
+            }):
+                if chunk:
+                    yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield f"data: [ERROR] {e}\n\n"
