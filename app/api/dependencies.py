@@ -1,41 +1,30 @@
-import os
 from functools import lru_cache
-from pathlib import Path
 from chains.chains import ChatChain, TopicChain, LLM, Translator
 from chains.rag import RagChain
 from chains.rag_chat import RagChatChain
+from core.settings import settings
 from retrievers import build_vector_retriever, build_keyword_retriever, build_hybrid_retriever
 from tools import build_rag_tools
-
-_VECTORSTORE_PATH = Path(__file__).parent.parent.parent / "data" / "vectorstore"
-_ALLOWED_WEB_DOMAINS: list[str] | None = (
-    os.environ["ALLOWED_WEB_DOMAINS"].split(",")
-    if os.environ.get("ALLOWED_WEB_DOMAINS")
-    else None
-)
-_DOCS_PATH = _VECTORSTORE_PATH / "docs.pkl"
-_EMBEDDING_MODEL = "bge-m3"
-_VECTOR_WEIGHT = 0.6
-_KEYWORD_WEIGHT = 0.4
-_TOP_K = 4
 
 
 @lru_cache()
 def get_rag_retriever():
+    r = settings.retriever
+    vectorstore_path = r.vectorstore_path
     faiss_retriever = build_vector_retriever(
-        vectorstore_path=_VECTORSTORE_PATH,
-        embedding_model=_EMBEDDING_MODEL,
-        top_k=_TOP_K,
+        vectorstore_path=vectorstore_path,
+        embedding_model=r.embedding_model,
+        top_k=r.top_k,
     )
     bm25_retriever = build_keyword_retriever(
-        docs_path=_DOCS_PATH,
-        top_k=_TOP_K,
+        docs_path=vectorstore_path / "docs.pkl",
+        top_k=r.top_k,
     )
     return build_hybrid_retriever(
         vector_retriever=faiss_retriever,
         keyword_retriever=bm25_retriever,
-        vector_weight=_VECTOR_WEIGHT,
-        keyword_weight=_KEYWORD_WEIGHT,
+        vector_weight=r.vector_weight,
+        keyword_weight=r.keyword_weight,
     )
 
 
@@ -61,7 +50,7 @@ def get_rag_chain():
 
 @lru_cache()
 def get_rag_tools():
-    return build_rag_tools(get_rag_retriever(), _ALLOWED_WEB_DOMAINS)
+    return build_rag_tools(get_rag_retriever(), settings.web.allowed_domains)
 
 
 @lru_cache()
