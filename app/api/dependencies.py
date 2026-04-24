@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 from chains.chains import ChatChain, TopicChain, LLM, Translator
@@ -7,6 +8,11 @@ from retrievers import build_vector_retriever, build_keyword_retriever, build_hy
 from tools import build_rag_tools
 
 _VECTORSTORE_PATH = Path(__file__).parent.parent.parent / "data" / "vectorstore"
+_ALLOWED_WEB_DOMAINS: list[str] | None = (
+    os.environ["ALLOWED_WEB_DOMAINS"].split(",")
+    if os.environ.get("ALLOWED_WEB_DOMAINS")
+    else None
+)
 _DOCS_PATH = _VECTORSTORE_PATH / "docs.pkl"
 _EMBEDDING_MODEL = "bge-m3"
 _VECTOR_WEIGHT = 0.6
@@ -55,7 +61,7 @@ def get_rag_chain():
 
 @lru_cache()
 def get_rag_tools():
-    return build_rag_tools(get_rag_retriever())
+    return build_rag_tools(get_rag_retriever(), _ALLOWED_WEB_DOMAINS)
 
 
 @lru_cache()
