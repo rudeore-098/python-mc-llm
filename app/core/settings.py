@@ -2,6 +2,10 @@ import yaml
 from pathlib import Path
 from pydantic import BaseModel
 
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 _CONFIG_PATH = Path(__file__).parent.parent.parent / "config.yaml"
 
 
@@ -36,10 +40,13 @@ class Settings(BaseModel):
 
 def _load() -> Settings:
     if not _CONFIG_PATH.exists():
+        logger.warning(f"config.yaml 없음 — 기본값 사용 ({_CONFIG_PATH})")
         return Settings()
     with open(_CONFIG_PATH, encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    return Settings(**data)
+    s = Settings(**data)
+    logger.info(f"설정 로드 완료: model={s.llm.model}, embedding={s.retriever.embedding_model}, web_domains={s.web.allowed_domains}")
+    return s
 
 
 settings = _load()

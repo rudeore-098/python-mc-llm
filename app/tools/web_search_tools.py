@@ -5,6 +5,10 @@ from bs4 import BeautifulSoup
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 _PAGE_TEXT_LIMIT = 8000
 _MAX_LINKS = 30
 
@@ -40,10 +44,15 @@ def _is_allowed(url: str, allowed_domains: list[str] | None) -> bool:
 def _build_fetch_page_tool(allowed_domains: list[str] | None) -> StructuredTool:
     def fetch_page(url: str) -> str:
         if not _is_allowed(url, allowed_domains):
+            logger.warning(f"[fetch_page] 허용되지 않은 도메인: {url}")
             return f"허용되지 않은 도메인입니다. 허용 도메인: {', '.join(allowed_domains)}"
+        logger.info(f"[fetch_page] 요청: {url}")
         try:
-            return _extract_text(_get_html(url))
+            text = _extract_text(_get_html(url))
+            logger.info(f"[fetch_page] 완료: {url} (길이: {len(text)})")
+            return text
         except httpx.HTTPError as e:
+            logger.error(f"[fetch_page] 실패: {url} — {e}")
             return f"페이지 로드 실패: {e}"
 
     domain_hint = f" 허용 도메인: {', '.join(allowed_domains)}." if allowed_domains else ""
@@ -58,7 +67,9 @@ def _build_fetch_page_tool(allowed_domains: list[str] | None) -> StructuredTool:
 def _build_fetch_links_tool(allowed_domains: list[str] | None) -> StructuredTool:
     def fetch_page_links(url: str) -> str:
         if not _is_allowed(url, allowed_domains):
+            logger.warning(f"[fetch_page_links] 허용되지 않은 도메인: {url}")
             return f"허용되지 않은 도메인입니다. 허용 도메인: {', '.join(allowed_domains)}"
+        logger.info(f"[fetch_page_links] 요청: {url}")
         try:
             soup = BeautifulSoup(_get_html(url), "html.parser")
             links = []
@@ -67,10 +78,12 @@ def _build_fetch_links_tool(allowed_domains: list[str] | None) -> StructuredTool
                 text = a.get_text(strip=True)
                 if href.startswith("http") and _is_allowed(href, allowed_domains) and text:
                     links.append(f"[{text}]({href})")
+            logger.info(f"[fetch_page_links] 완료: {url} (링크 수: {len(links)})")
             if not links:
                 return "링크가 없습니다."
             return "\n".join(links[:_MAX_LINKS])
         except httpx.HTTPError as e:
+            logger.error(f"[fetch_page_links] 실패: {url} — {e}")
             return f"페이지 로드 실패: {e}"
 
     domain_hint = f" 허용 도메인: {', '.join(allowed_domains)}." if allowed_domains else ""
