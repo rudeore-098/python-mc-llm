@@ -7,7 +7,7 @@ license = "MIT License"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "3.11.x"
+python = "~3.11"
 langchain = "^0.3"
 langserve = "^0.3"
 langchain-openai = "^0.2"
@@ -26,6 +26,7 @@ jupyter = "^1.1.1"
 notebook = "^7.3.2"
 langchain-teddynote = "^0.3.40"
 langgraph = "^0.2.60"
+rank-bm25 = "^0.2.2"
 
 
 [build-system]
