@@ -1,7 +1,7 @@
 # retrievers/hybrid_retriever.py
+# from langchain_classic.retrievers import EnsembleRetriever
 from langchain.retrievers import EnsembleRetriever
 from langchain_core.retrievers import BaseRetriever
-
 from core.exceptions import RetrievalError
 from core.logger import get_logger
 
